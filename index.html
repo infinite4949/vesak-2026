@@ -39,11 +39,9 @@
 <div id="map"></div>
 
 <script type="module">
-  // 1. 導入 Firebase
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getDatabase, ref, push, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  // ⚠️ 請務必確認這裡貼的是你自己的 Firebase 金鑰
   const firebaseConfig = {
     apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
     authDomain: "scoutvesak.firebaseapp.com",
@@ -55,97 +53,86 @@
     measurementId: "G-QJ80DCXFHV"
   };
 
-  // 初始化 Firebase
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  const lightsRef = ref(db, 'lights');
+  const pointsRef = ref(db, 'points');
 
-  // 2. 語言設定邏輯
+  // --- 1. 佛光菜根譚 清單 ---
+  const quotes = [
+    "慈悲心是一切功德的母體。",
+    "心好命就好，慈悲聖潔好。",
+    "給人信心，給人希望，給人喜悅，給人方便。",
+    "容人、助人、愛人，是自救救人之道。",
+    "提得起是聰明，放得下是智慧。"
+  ];
+
+  // --- 2. 完整翻譯字典 ---
   let currentLang = 'zh';
   const i18n = {
     zh: { 
       nav: "VESAK GLOBAL LIGHTING | 衛塞全球點燈", 
       desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", 
-      countLabel: "全球已匯聚：",
-      unit: " 盞心燈",
-      quote: "「願慈悲之光，照破世間黑暗。」"
+      countLabel: "全球已匯聚：", unit: " 盞心燈",
+      quote: "「願慈悲之光，照破世間黑暗。」",
+      popup: "您已點亮一盞慈悲之光！"
     },
     en: { 
       nav: "VESAK GLOBAL LIGHTING", 
       desc: "Click the map to light a lotus, your good deeds will be synced globally.", 
-      countLabel: "Global Deeds Shared: ",
-      unit: " Lights",
-      quote: "「May the light of compassion illuminate every corner of the world.」"
+      countLabel: "Global Deeds Shared: ", unit: " Lights",
+      quote: "「May the light of compassion illuminate every corner of the world.」",
+      popup: "You have lit a light of compassion!"
     }
   };
 
-  // 將切換功能掛載到 window，確保按鈕點得到
+  // --- 3. 翻譯執行函式 ---
   window.toggleLang = function() {
     currentLang = currentLang === 'zh' ? 'en' : 'zh';
     document.getElementById('nav-title').innerText = i18n[currentLang].nav;
     document.getElementById('description').innerText = i18n[currentLang].desc;
-    document.getElementById('quote-text').innerText = i18n[currentLang].quote;
-    updateCountDisplay();
+    document.querySelector('.stats-badge').innerHTML = `${i18n[currentLang].countLabel}<span id="count">${lastCount}</span>${i18n[currentLang].unit}`;
+    
+    // 確保 quote-text 存在
+    const qText = document.getElementById('quote-text');
+    if(qText) qText.innerText = i18n[currentLang].quote;
   };
 
-  // 3. 地圖與點燈邏輯
-  const map = L.map('map', {
-    center: [20, 0],
-    zoom: 2,
-    minZoom: 2,
-    maxBounds: [[-90, -180], [90, 180]]
-  });
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-  const lotusIcon = L.divIcon({
-    className: 'lotus-icon',
-    html: '🪷',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
-  });
-
-  // 點擊地圖存入 Firebase
-  map.on('click', function(e) {
-    push(lightsRef, {
+  // --- 4. 地圖功能與點燈 ---
+  map.on('click', (e) => {
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+    push(pointsRef, {
       lat: e.latlng.lat,
       lng: e.latlng.lng,
+      quote: randomQuote,
       timestamp: Date.now()
     });
   });
 
-  // 監聽 Firebase 資料更新
-  let totalCount = 0;
-  onValue(lightsRef, (snapshot) => {
-    // 清除舊標記（避免重複渲染）
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Marker) map.removeLayer(layer);
-    });
-
-    const data = snapshot.val();
-    if (data) {
-      const entries = Object.values(data);
-      totalCount = entries.length;
-      entries.forEach(light => {
-        L.marker([light.lat, light.lng], { icon: lotusIcon }).addTo(map);
-      });
-    } else {
-      totalCount = 0;
-    }
-    updateCountDisplay();
+  let lastCount = 0;
+  onChildAdded(pointsRef, (data) => {
+    const val = data.val();
+    const marker = L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
+    
+    // 這裡就是「佛光菜根譚」彈出的地方
+    const popupContent = `
+      <div style="text-align:center;">
+        <b style="color:var(--gold);">${i18n[currentLang].popup}</b><br>
+        <p style="font-style:italic; margin-top:5px;">${val.quote || "慈悲喜捨"}</p>
+      </div>
+    `;
+    marker.bindPopup(popupContent).openPopup();
   });
 
-  function updateCountDisplay() {
-    const statsBadge = document.querySelector('.stats-badge');
-    if (statsBadge) {
-      statsBadge.innerHTML = `${i18n[currentLang].countLabel}<span id="count">${totalCount}</span>${i18n[currentLang].unit}`;
-    }
-  }
+  onValue(pointsRef, (snapshot) => {
+    lastCount = snapshot.size || 0;
+    document.getElementById('count').innerText = lastCount;
+  });
 </script>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 
 </html>
+
 
 
