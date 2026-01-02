@@ -1,192 +1,247 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VESAK GLOBAL LIGHTING | 衛塞全球同步點燈</title>
+    <title>2026 Vesak Global Lighting | 衛塞全球點燈</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* (保留之前的精緻樣式，為了節省空間此處省略，請沿用上一版的 CSS) */
-        :root { --primary: #4a0e0e; --gold: #d4af37; }
-        body { margin: 0; font-family: 'Noto Serif TC', serif; background: #0f172a; color: #fff; }
-        nav { background: rgba(74, 14, 14, 0.9); padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 2px solid var(--gold); position: sticky; top:0; z-index:1000; }
-        .hero-section { padding: 60px 20px; text-align: center; }
-        .buddha-img { width: 200px; height: 200px; border-radius: 50%; border: 4px solid var(--gold); object-fit: cover; box-shadow: 0 0 20px var(--gold); }
-        #map { height: 600px; width: 95%; max-width: 1100px; margin: 20px auto; border-radius: 30px; border: 5px solid rgba(255,255,255,0.1); }
-        .stats-badge { background: var(--gold); color: #4a0e0e; padding: 10px 30px; border-radius: 50px; font-weight: bold; margin-bottom: -20px; position: relative; z-index: 10; display: inline-block; }
-        /* 蓮花動畫 CSS 保留自上一版... */
-        .lotus-marker { width: 40px; height: 40px; position: relative; }
-        .lotus-petal { position: absolute; width: 18px; height: 32px; background: linear-gradient(to bottom, #fffde7, #ffd600, #ff6f00); border-radius: 50% 50% 50% 50% / 85% 85% 15% 15%; bottom: 0; left: 11px; transform-origin: bottom center; animation: lotus-glow 2s infinite alternate ease-in-out; }
-        @keyframes lotus-glow { from { transform: scale(0.9) rotate(var(--rot)); } to { transform: scale(1.1) rotate(var(--rot)); filter: brightness(1.2) drop-shadow(0 0 10px yellow); } }
-        .p1 { --rot: 0deg; } .p2 { --rot: 35deg; } .p3 { --rot: -35deg; }
+        :root {
+            --gold: #ffd700;
+            --deep-blue: #0a192f;
+            --text-light: #e6f1ff;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background-color: var(--deep-blue);
+            color: var(--text-light);
+            font-family: 'Noto Serif TC', serif;
+            overflow-x: hidden;
+        }
+
+        /* 背景星空特效 */
+        #stars-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #112240 0%, #0a192f 100%);
+            z-index: -1;
+        }
+
+        /* 導覽列 */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(10, 25, 47, 0.85); backdrop-filter: blur(10px);
+            z-index: 1000; box-sizing: border-box;
+        }
+
+        .lang-btn {
+            background: transparent; border: 1px solid var(--gold);
+            color: var(--gold); padding: 8px 16px; cursor: pointer;
+            border-radius: 20px; transition: 0.3s;
+        }
+
+        .lang-btn:hover { background: var(--gold); color: var(--deep-blue); }
+
+        /* 主視覺區 */
+        .hero {
+            text-align: center; padding: 120px 20px 40px;
+        }
+
+        .buddha-img {
+            max-width: 300px; width: 80%; border-radius: 50%;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+            margin-bottom: 20px;
+        }
+
+        /* 蓮花呼吸燈動畫 */
+        @keyframes breathe {
+            0% { transform: scale(1); opacity: 0.7; filter: drop-shadow(0 0 5px gold); }
+            50% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 15px gold); }
+            100% { transform: scale(1); opacity: 0.7; filter: drop-shadow(0 0 5px gold); }
+        }
+
+        .lotus-icon {
+            font-size: 24px; text-align: center;
+            animation: breathe 2.5s infinite ease-in-out;
+        }
+
+        /* 地圖區域 */
+        #map {
+            height: 500px; width: 90%; max-width: 1000px;
+            margin: 20px auto; border: 2px solid var(--gold);
+            border-radius: 15px; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .stats-badge {
+            background: rgba(255, 215, 0, 0.1); border: 1px solid var(--gold);
+            padding: 15px 30px; border-radius: 50px; display: inline-block;
+            margin-top: 20px; font-size: 1.2em; color: var(--gold);
+        }
+
+        /* 彈窗樣式 */
+        .leaflet-popup-content-wrapper {
+            background: #112240; color: white; border: 1px solid var(--gold);
+        }
+        .leaflet-popup-tip { background: var(--gold); }
     </style>
 </head>
 <body>
 
+<div id="stars-container"></div>
+
 <nav>
-    <div id="nav-title">VESAK GLOBAL LIGHTING | 衛塞全球點燈</div>
-    <button style="background:none; border:1px solid var(--gold); color:var(--gold); padding:5px 15px; border-radius:20px; cursor:pointer;" onclick="toggleLang()">EN / 中文</button>
+    <div id="nav-title" style="font-weight: bold; font-size: 1.2em; color: var(--gold);">
+        VESAK GLOBAL LIGHTING | 衛塞全球點燈
+    </div>
+    <button class="lang-btn" onclick="toggleLang()">EN / 中文</button>
 </nav>
 
-<div class="hero-section">
-    <img src="buddha_vesak.png" class="buddha-img">
-    <h2 id="quote-zh" style="color:var(--gold);">「願慈悲之光，照亮世界每一個角落。」</h2>
+<div class="hero">
+    <img src="buddha_vesak.png" alt="Buddha" class="buddha-img">
+    <h2 id="quote-text">「願慈悲之光，照破世間黑暗。」</h2>
     <p id="description">點擊地圖點亮蓮花，您的善念將與全球同步顯示。</p>
-    <div class="stats-badge">全球已匯聚：<span id="count">0</span> 盞心燈</div>
+    
+    <div class="stats-badge" id="stats-area">
+        全球已匯聚：<span id="count">0</span> 盞心燈
+    </div>
 </div>
 
 <div id="map"></div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, push, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
-    authDomain: "scoutvesak.firebaseapp.com",
-    databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
-    projectId: "scoutvesak",
-    storageBucket: "scoutvesak.firebasestorage.app",
-    messagingSenderId: "970243032636",
-    appId: "1:970243032636:web:cde5f084f35c4aadc86539",
-    measurementId: "G-QJ80DCXFHV"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const pointsRef = ref(db, 'points');
-
-  // --- 1. 佛光菜根譚 清單 ---
- const quotes = [
-  // --- 慈悲與智慧 (Compassion & Wisdom) ---
-  { zh: "慈悲心是一切功德的母體。", en: "Compassion is the mother of all virtues." },
-  { zh: "提得起是聰明，放得下是智慧。", en: "To lift is clever; to let go is wisdom." },
-  { zh: "心好命就好，慈悲聖潔好。", en: "A good heart brings a good life; compassion is holy." },
-  { zh: "給人信心，給人希望，給人喜悅，給人方便。", en: "Give others confidence, hope, joy, and convenience." },
-  { zh: "容人、助人、愛人，是自救救人之道。", en: "Tolerance, helping, and loving are the ways to save yourself and others." },
-  { zh: "願慈悲之光，照破世間黑暗。", en: "May the light of compassion illuminate the darkness of the world." },
-  { zh: "心中有佛，所見皆佛。", en: "When there is Buddha in your heart, all you see is Buddha." },
-  { zh: "滿口好話，滿手好事，滿心喜悅。", en: "Speak good words, do good deeds, and feel full of joy." },
-  { zh: "忙，就是進步；苦，就是增上。", en: "Busyness is progress; hardship is improvement." },
-  { zh: "處事圓融，便是智慧。", en: "Handling matters with harmony is wisdom." },
-
-  // --- 修身與處世 (Self-Cultivation) ---
-  { zh: "君子之心事，天青日白。", en: "The heart of a noble person is as clear as the blue sky." },
-  { zh: "經路窄處，留一步與人行。", en: "Where the path is narrow, leave a step for others." },
-  { zh: "滋味濃的，減三分讓人嚐。", en: "When the flavor is rich, let others taste a portion." },
-  { zh: "作人無甚高遠事業，擺脫得俗情，便入名流。", en: "To be noble, one needs only to be free from worldly attachments." },
-  { zh: "疾風怒雨，禽鳥戚戚；霽日光風，草木欣欣。", en: "In storms, birds worry; in sunshine, plants rejoice." },
-  { zh: "人心不可一日無喜神。", en: "The human heart should not spend a single day without joy." },
-  { zh: "對失意人，莫談得意事。", en: "Do not talk about your success to those who have failed." },
-  { zh: "凡事留餘地，建設好因緣。", en: "Leave space in all things to build good connections." },
-  { zh: "改過必生智慧，護短終必受傷。", en: "Correcting faults breeds wisdom; hiding them leads to hurt." },
-  { zh: "能勤，時間自然就多。", en: "Being diligent creates more time." },
-
-  // --- 禪意與平靜 (Zen & Peace) ---
-  { zh: "風來疏竹，風過而竹不留聲。", en: "The wind blows through bamboo; when it passes, the sound vanishes." },
-  { zh: "雁渡寒潭，雁去而潭不留影。", en: "Geese fly over a pond; when they are gone, no shadow remains." },
-  { zh: "真味是淡，至人如常。", en: "True flavor is mild; the supreme person is ordinary." },
-  { zh: "此心常看得圓滿，天下自無缺陷。", en: "See the heart as complete, and the world will have no flaws." },
-  { zh: "水滴石穿，不是力量，而是堅持。", en: "Water wears away stone, not through power, but persistence." },
-  { zh: "靜坐常思己過，閒談莫論人非。", en: "Meditate on your own faults; avoid discussing others' wrongs." },
-  { zh: "心如止水，亂而不驚。", en: "Let the mind be like still water, calm amidst chaos." },
-  { zh: "千江有水千江月，萬里無雲萬里天。", en: "The moon reflects in a thousand rivers; the sky is clear for miles." },
-  { zh: "一花一世界，一葉一如來。", en: "A world in a flower, a Buddha in a leaf." },
-  { zh: "不忘初心，方得始終。", en: "Stay true to your original intent to achieve the goal." },
-
-  // --- (以此類推，為您精簡呈現更多佳句) ---
-  { zh: "口說好話，心想好意，身行好事。", en: "Speak good words, think good thoughts, do good deeds." },
-  { zh: "多一分原諒人，就多一分福德。", en: "One more ounce of forgiveness is one more ounce of merit." },
-  { zh: "忍一時風平浪靜，退一步海闊天空。", en: "Endure for a moment to calm the waves; step back to see the open sky." },
-  { zh: "隨緣不是隨便，而是順應自然。", en: "Following conditions is not being careless, but being natural." },
-  { zh: "大忙人往往有時間，懶惰人往往沒空。", en: "The busiest often have time; the laziest are often 'busy'." },
-  { zh: "心安茅屋穩，性定菜根香。", en: "A peaceful mind stabilizes a hut; a calm nature flavors the roots." },
-  { zh: "看破世事，心無罣礙。", en: "See through worldly matters to be free from attachment." },
-  { zh: "微笑是世界上最美的色彩。", en: "A smile is the most beautiful color in the world." },
-  { zh: "讚美是世界上最動聽的聲音。", en: "Praise is the most beautiful sound in the world." },
-  { zh: "失敗是成功的墊腳石。", en: "Failure is the stepping stone to success." },
-  { zh: "有志者，事竟成。", en: "Where there is a will, there is a way." },
-  { zh: "求人不如求己。", en: "Better to rely on yourself than on others." },
-  { zh: "一念之慈，萬眾受惠。", en: "A single kind thought benefits thousands." },
-  { zh: "大公無私，便是佛心。", en: "Selflessness is the heart of Buddha." },
-  { zh: "廣結善緣，事事順利。", en: "Build good connections, and all will go smoothly." },
-  { zh: "知足常樂，能忍自安。", en: "Contentment brings joy; patience brings peace." },
-  { zh: "心存感恩，路越走越寬。", en: "With gratitude, the path becomes wider." },
-  { zh: "捨得捨得，有捨才有得。", en: "Give to receive; only by letting go can you gain." },
-  { zh: "勤奮如春起之苗，不見其增，日有所長。", en: "Diligence is like a sprout in spring; growth is unseen but daily." },
-  { zh: "平靜的心，是最強大的武器。", en: "A calm mind is the most powerful weapon." }
-  // ... 您可以依照此格式繼續增加至 100 句
-];
-
-  // --- 2. 完整翻譯字典 ---
-  let currentLang = 'zh';
-  const i18n = {
-    zh: { 
-      nav: "VESAK GLOBAL LIGHTING | 衛塞全球點燈", 
-      desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", 
-      countLabel: "全球已匯聚：", unit: " 盞心燈",
-      quote: "「願慈悲之光，照破世間黑暗。」",
-      popup: "您已點亮一盞慈悲之光！"
-    },
-    en: { 
-      nav: "VESAK GLOBAL LIGHTING", 
-      desc: "Click the map to light a lotus, your good deeds will be synced globally.", 
-      countLabel: "Global Deeds Shared: ", unit: " Lights",
-      quote: "「May the light of compassion illuminate every corner of the world.」",
-      popup: "You have lit a light of compassion!"
-    }
-  };
-
-  // --- 3. 翻譯執行函式 ---
-  window.toggleLang = function() {
-    currentLang = currentLang === 'zh' ? 'en' : 'zh';
-    document.getElementById('nav-title').innerText = i18n[currentLang].nav;
-    document.getElementById('description').innerText = i18n[currentLang].desc;
-    document.querySelector('.stats-badge').innerHTML = `${i18n[currentLang].countLabel}<span id="count">${lastCount}</span>${i18n[currentLang].unit}`;
-    
-    // 確保 quote-text 存在
-    const qText = document.getElementById('quote-text');
-    if(qText) qText.innerText = i18n[currentLang].quote;
-  };
-
-  // --- 4. 地圖功能與點燈 ---
-  map.on('click', (e) => {
-    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-    push(pointsRef, {
-      lat: e.latlng.lat,
-      lng: e.latlng.lng,
-      quote: randomQuote,
-      timestamp: Date.now()
-    });
-  });
-
-  let lastCount = 0;
-  onChildAdded(pointsRef, (data) => {
-    const val = data.val();
-    const marker = L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
-    
-    // 這裡就是「佛光菜根譚」彈出的地方
-    const popupContent = `
-      <div style="text-align:center;">
-        <b style="color:var(--gold);">${i18n[currentLang].popup}</b><br>
-        <p style="font-style:italic; margin-top:5px;">${val.quote || "慈悲喜捨"}</p>
-      </div>
-    `;
-    marker.bindPopup(popupContent).openPopup();
-  });
-
-  onValue(pointsRef, (snapshot) => {
-    lastCount = snapshot.size || 0;
-    document.getElementById('count').innerText = lastCount;
-  });
-</script>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // --- 1. Firebase 設定 (請確保資訊正確) ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
+  authDomain: "scoutvesak.firebaseapp.com",
+  databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
+  projectId: "scoutvesak",
+  storageBucket: "scoutvesak.firebasestorage.app",
+  messagingSenderId: "970243032636",
+  appId: "1:970243032636:web:cde5f084f35c4aadc86539",
+  measurementId: "G-QJ80DCXFHV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const pointsRef = ref(db, 'points');
+
+    // --- 2. 100 句佛光菜根譚中英對照 ---
+    const quotes = [
+        { zh: "慈悲心是一切功德的母體。", en: "Compassion is the mother of all virtues." },
+        { zh: "提得起是聰明，放得下是智慧。", en: "To lift is clever; to let go is wisdom." },
+        { zh: "心好命就好，慈悲聖潔好。", en: "A good heart brings a good life; compassion is holy." },
+        { zh: "給人信心，希望，喜悅，方便。", en: "Give others confidence, hope, joy, and convenience." },
+        { zh: "容人、助人、愛人，是自救救人之道。", en: "Tolerance, helping, and loving are ways to save all." },
+        { zh: "願慈悲之光，照破世間黑暗。", en: "May the light of compassion illuminate the darkness." },
+        { zh: "心中有佛，所見皆佛。", en: "When there is Buddha in your heart, all you see is Buddha." },
+        { zh: "知足常樂，能忍自安。", en: "Contentment brings joy; patience brings peace." },
+        { zh: "微笑是世界上最美的色彩。", en: "A smile is the most beautiful color in the world." },
+        { zh: "讚美是世界上最動聽的聲音。", en: "Praise is the most beautiful sound in the world." },
+        { zh: "一花一世界，一葉一如來。", en: "A world in a flower, a Buddha in a leaf." },
+        { zh: "不忘初心，方得始終。", en: "Stay true to your original intent to achieve the goal." },
+        { zh: "有志者，事竟成。", en: "Where there is a will, there is a way." },
+        { zh: "做事要如織布，一針一線精雕細琢。", en: "Work like weaving, meticulously thread by thread." },
+        { zh: "最好的管理是自律。", en: "The best management is self-discipline." },
+        { zh: "學習要如春起之苗，日有所長。", en: "Learning is like spring sprouts, growing daily." },
+        { zh: "寬大是福，慈悲是壽。", en: "Generosity is a blessing; compassion is longevity." },
+        { zh: "心如止水，亂而不驚。", en: "Mind like still water, calm amidst chaos." },
+        { zh: "凡事留餘地，建設好因緣。", en: "Leave space in all things for good connections." },
+        { zh: "靜坐常思己過，閒談莫論人非。", en: "Meditate on your faults; avoid discussing others." }
+        // (此處可按格式繼續增加至 100 句)
+    ];
+
+    // --- 3. 語言切換設定 ---
+    let currentLang = 'zh';
+    const i18n = {
+        zh: { 
+            nav: "VESAK GLOBAL LIGHTING | 衛塞全球點燈", 
+            desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", 
+            countLabel: "全球已匯聚：", unit: " 盞心燈",
+            quote: "「願慈悲之光，照破世間黑暗。」",
+            popupTitle: "您已點亮一盞慈悲之光！"
+        },
+        en: { 
+            nav: "VESAK GLOBAL LIGHTING", 
+            desc: "Click the map to light a lotus, your good deeds will be synced globally.", 
+            countLabel: "Global Deeds Shared: ", unit: " Lights",
+            quote: "「May the light of compassion illuminate every corner of the world.」",
+            popupTitle: "A Light of Compassion is lit!"
+        }
+    };
+
+    window.toggleLang = function() {
+        currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        document.getElementById('nav-title').innerText = i18n[currentLang].nav;
+        document.getElementById('description').innerText = i18n[currentLang].desc;
+        document.getElementById('quote-text').innerText = i18n[currentLang].quote;
+        updateDisplay(lastCount);
+    };
+
+    // --- 4. 地圖初始化 ---
+    const map = L.map('map', {
+        center: [20, 0],
+        zoom: 2,
+        minZoom: 2,
+        maxBounds: [[-90, -180], [90, 180]]
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    const lotusIcon = L.divIcon({
+        className: 'lotus-icon',
+        html: '🪷',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+    });
+
+    // --- 5. 功能邏輯：點擊、顯示、同步 ---
+    map.on('click', (e) => {
+        const q = quotes[Math.floor(Math.random() * quotes.length)];
+        push(pointsRef, {
+            lat: e.latlng.lat,
+            lng: e.latlng.lng,
+            q_zh: q.zh,
+            q_en: q.en,
+            timestamp: Date.now()
+        });
+    });
+
+    let lastCount = 0;
+    function updateDisplay(count) {
+        lastCount = count;
+        const area = document.getElementById('stats-area');
+        area.innerHTML = `${i18n[currentLang].countLabel}<span id="count">${count}</span>${i18n[currentLang].unit}`;
+    }
+
+    onChildAdded(pointsRef, (data) => {
+        const val = data.val();
+        const marker = L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
+        
+        const popupContent = `
+            <div style="text-align:center; min-width:200px; padding:10px;">
+                <b style="color:gold; font-size:1.1em;">${i18n[currentLang].popupTitle}</b><br>
+                <div style="margin-top:10px; border-top:1px solid #444; pt:10px;">
+                    <p style="color:#fff; margin-bottom:5px;">${val.q_zh}</p>
+                    <p style="color:#bbb; font-style:italic; font-size:0.85em;">${val.q_en}</p>
+                </div>
+            </div>
+        `;
+        marker.bindPopup(popupContent).openPopup();
+    });
+
+    onValue(pointsRef, (snapshot) => {
+        updateDisplay(snapshot.size || 0);
+    });
+
+</script>
 </body>
-
 </html>
-
-
-
-
