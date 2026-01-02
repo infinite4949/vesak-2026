@@ -39,56 +39,113 @@
 <div id="map"></div>
 
 <script type="module">
+  // 1. 導入 Firebase
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  // ⚠️ 請在此替換為你從 Firebase Console 複製的設定
+  // ⚠️ 請務必確認這裡貼的是你自己的 Firebase 金鑰
   const firebaseConfig = {
-  apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
-  authDomain: "scoutvesak.firebaseapp.com",
-  databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
-  projectId: "scoutvesak",
-  storageBucket: "scoutvesak.firebasestorage.app",
-  messagingSenderId: "970243032636",
-  appId: "1:970243032636:web:cde5f084f35c4aadc86539",
-  measurementId: "G-QJ80DCXFHV"
-};
+    apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
+    authDomain: "scoutvesak.firebaseapp.com",
+    databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
+    projectId: "scoutvesak",
+    storageBucket: "scoutvesak.firebasestorage.app",
+    messagingSenderId: "970243032636",
+    appId: "1:970243032636:web:cde5f084f35c4aadc86539",
+    measurementId: "G-QJ80DCXFHV"
+  };
 
+  // 初始化 Firebase
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  const pointsRef = ref(db, 'lights');
+  const lightsRef = ref(db, 'lights');
 
-  // 初始化地圖
-  const map = L.map('map').setView([20, 10], 2);
+  // 2. 語言設定邏輯
+  let currentLang = 'zh';
+  const i18n = {
+    zh: { 
+      nav: "VESAK GLOBAL LIGHTING | 衛塞全球點燈", 
+      desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", 
+      countLabel: "全球已匯聚：",
+      unit: " 盞心燈",
+      quote: "「願慈悲之光，照破世間黑暗。」"
+    },
+    en: { 
+      nav: "VESAK GLOBAL LIGHTING", 
+      desc: "Click the map to light a lotus, your good deeds will be synced globally.", 
+      countLabel: "Global Deeds Shared: ",
+      unit: " Lights",
+      quote: "「May the light of compassion illuminate every corner of the world.」"
+    }
+  };
+
+  // 將切換功能掛載到 window，確保按鈕點得到
+  window.toggleLang = function() {
+    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+    document.getElementById('nav-title').innerText = i18n[currentLang].nav;
+    document.getElementById('description').innerText = i18n[currentLang].desc;
+    document.getElementById('quote-text').innerText = i18n[currentLang].quote;
+    updateCountDisplay();
+  };
+
+  // 3. 地圖與點燈邏輯
+  const map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 2,
+    maxBounds: [[-90, -180], [90, 180]]
+  });
+
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-  const lotusHtml = `<div class="lotus-marker"><div class="lotus-petal p1"></div><div class="lotus-petal p2"></div><div class="lotus-petal p3"></div></div>`;
-  const lotusIcon = L.divIcon({ className: 'custom-lotus', html: lotusHtml, iconSize: [40, 40], iconAnchor: [20, 35] });
+  const lotusIcon = L.divIcon({
+    className: 'lotus-icon',
+    html: '🪷',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
 
-  // 1. 監聽點擊：點燈時寫入資料庫
-  map.on('click', (e) => {
-    push(pointsRef, {
+  // 點擊地圖存入 Firebase
+  map.on('click', function(e) {
+    push(lightsRef, {
       lat: e.latlng.lat,
       lng: e.latlng.lng,
       timestamp: Date.now()
     });
   });
 
-  // 2. 監聽資料庫：當有新點燈時，在地圖上畫出來
-  onChildAdded(pointsRef, (data) => {
-    const val = data.val();
-    L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
+  // 監聽 Firebase 資料更新
+  let totalCount = 0;
+  onValue(lightsRef, (snapshot) => {
+    // 清除舊標記（避免重複渲染）
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Marker) map.removeLayer(layer);
+    });
+
+    const data = snapshot.val();
+    if (data) {
+      const entries = Object.values(data);
+      totalCount = entries.length;
+      entries.forEach(light => {
+        L.marker([light.lat, light.lng], { icon: lotusIcon }).addTo(map);
+      });
+    } else {
+      totalCount = 0;
+    }
+    updateCountDisplay();
   });
 
-  // 3. 監聽總數：更新計數器
-  onValue(pointsRef, (snapshot) => {
-    const count = snapshot.size;
-    document.getElementById('count').innerText = count;
-  });
+  function updateCountDisplay() {
+    const statsBadge = document.querySelector('.stats-badge');
+    if (statsBadge) {
+      statsBadge.innerHTML = `${i18n[currentLang].countLabel}<span id="count">${totalCount}</span>${i18n[currentLang].unit}`;
+    }
+  }
 </script>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 
 </html>
+
 
