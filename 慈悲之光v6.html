@@ -44,14 +44,15 @@
 
   // ⚠️ 請在此替換為你從 Firebase Console 複製的設定
   const firebaseConfig = {
-    apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
-    authDomain: "scoutvesak.firebaseapp.com",
-    databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
-    projectId: "scoutvesak",
-    storageBucket: "scoutvesak.firebasestorage.app",
-    messagingSenderId: "970243032636",
-    appId: "1:970243032636:web:cde5f084f35c4aadc86539"
-  };
+  apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
+  authDomain: "scoutvesak.firebaseapp.com",
+  databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
+  projectId: "scoutvesak",
+  storageBucket: "scoutvesak.firebasestorage.app",
+  messagingSenderId: "970243032636",
+  appId: "1:970243032636:web:cde5f084f35c4aadc86539",
+  measurementId: "G-QJ80DCXFHV"
+};
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -88,4 +89,5 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
+
 </html>
