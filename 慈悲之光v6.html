@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VESAK GLOBAL LIGHTING | 衛塞全球同步點燈</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* (保留之前的精緻樣式，為了節省空間此處省略，請沿用上一版的 CSS) */
+        :root { --primary: #4a0e0e; --gold: #d4af37; }
+        body { margin: 0; font-family: 'Noto Serif TC', serif; background: #0f172a; color: #fff; }
+        nav { background: rgba(74, 14, 14, 0.9); padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 2px solid var(--gold); position: sticky; top:0; z-index:1000; }
+        .hero-section { padding: 60px 20px; text-align: center; }
+        .buddha-img { width: 200px; height: 200px; border-radius: 50%; border: 4px solid var(--gold); object-fit: cover; box-shadow: 0 0 20px var(--gold); }
+        #map { height: 600px; width: 95%; max-width: 1100px; margin: 20px auto; border-radius: 30px; border: 5px solid rgba(255,255,255,0.1); }
+        .stats-badge { background: var(--gold); color: #4a0e0e; padding: 10px 30px; border-radius: 50px; font-weight: bold; margin-bottom: -20px; position: relative; z-index: 10; display: inline-block; }
+        /* 蓮花動畫 CSS 保留自上一版... */
+        .lotus-marker { width: 40px; height: 40px; position: relative; }
+        .lotus-petal { position: absolute; width: 18px; height: 32px; background: linear-gradient(to bottom, #fffde7, #ffd600, #ff6f00); border-radius: 50% 50% 50% 50% / 85% 85% 15% 15%; bottom: 0; left: 11px; transform-origin: bottom center; animation: lotus-glow 2s infinite alternate ease-in-out; }
+        @keyframes lotus-glow { from { transform: scale(0.9) rotate(var(--rot)); } to { transform: scale(1.1) rotate(var(--rot)); filter: brightness(1.2) drop-shadow(0 0 10px yellow); } }
+        .p1 { --rot: 0deg; } .p2 { --rot: 35deg; } .p3 { --rot: -35deg; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div id="nav-title">VESAK GLOBAL LIGHTING | 衛塞全球點燈</div>
+    <button style="background:none; border:1px solid var(--gold); color:var(--gold); padding:5px 15px; border-radius:20px; cursor:pointer;" onclick="toggleLang()">EN / 中文</button>
+</nav>
+
+<div class="hero-section">
+    <img src="buddha_vesak.png" class="buddha-img">
+    <h2 id="quote-zh" style="color:var(--gold);">「願慈悲之光，照亮世界每一個角落。」</h2>
+    <p id="description">點擊地圖點亮蓮花，您的善念將與全球同步顯示。</p>
+    <div class="stats-badge">全球已匯聚：<span id="count">0</span> 盞心燈</div>
+</div>
+
+<div id="map"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  // ⚠️ 請在此替換為你從 Firebase Console 複製的設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
+    authDomain: "scoutvesak.firebaseapp.com",
+    databaseURL: "https://scoutvesak-default-rtdb.firebaseio.com",
+    projectId: "scoutvesak",
+    storageBucket: "scoutvesak.firebasestorage.app",
+    messagingSenderId: "970243032636",
+    appId: "1:970243032636:web:cde5f084f35c4aadc86539"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const pointsRef = ref(db, 'lights');
+
+  // 初始化地圖
+  const map = L.map('map').setView([20, 10], 2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+  const lotusHtml = `<div class="lotus-marker"><div class="lotus-petal p1"></div><div class="lotus-petal p2"></div><div class="lotus-petal p3"></div></div>`;
+  const lotusIcon = L.divIcon({ className: 'custom-lotus', html: lotusHtml, iconSize: [40, 40], iconAnchor: [20, 35] });
+
+  // 1. 監聽點擊：點燈時寫入資料庫
+  map.on('click', (e) => {
+    push(pointsRef, {
+      lat: e.latlng.lat,
+      lng: e.latlng.lng,
+      timestamp: Date.now()
+    });
+  });
+
+  // 2. 監聽資料庫：當有新點燈時，在地圖上畫出來
+  onChildAdded(pointsRef, (data) => {
+    const val = data.val();
+    L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
+  });
+
+  // 3. 監聽總數：更新計數器
+  onValue(pointsRef, (snapshot) => {
+    const count = snapshot.size;
+    document.getElementById('count').innerText = count;
+  });
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
