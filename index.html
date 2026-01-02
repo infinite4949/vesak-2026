@@ -4,64 +4,70 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026 Vesak Global Lighting | 衛塞全球點燈</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         :root { --gold: #ffd700; --deep-blue: #0a192f; }
         body { margin: 0; background: var(--deep-blue); color: white; font-family: "Microsoft JhengHei", sans-serif; text-align: center; }
-        nav { padding: 20px; display: flex; justify-content: space-between; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); position: fixed; width: 100%; z-index: 1000; box-sizing: border-box; }
+        
+        /* 導覽列與翻譯按鈕 */
+        nav { padding: 20px; display: flex; justify-content: space-between; background: rgba(10,25,47,0.9); position: fixed; width: 100%; z-index: 1000; box-sizing: border-box; }
+        .lang-btn { color: var(--gold); background: none; border: 1px solid var(--gold); padding: 5px 15px; border-radius: 15px; cursor: pointer; }
+        
         .hero { padding: 120px 20px 40px; }
         .buddha-img { width: 220px; border-radius: 50%; box-shadow: 0 0 40px var(--gold); margin-bottom: 20px; }
-        #map { height: 550px; width: 95%; max-width: 1100px; margin: 20px auto; border-radius: 15px; border: 2px solid var(--gold); z-index: 1; }
         
-        /* 蓮花圖示修正與呼吸動畫 */
+        /* 地圖容器 */
+        #map { height: 500px; width: 95%; max-width: 1100px; margin: 20px auto; border-radius: 15px; border: 2px solid var(--gold); z-index: 1; }
+
+        /* 蓮花呼吸燈特效修正 */
         @keyframes breathe {
-            0% { transform: scale(1); filter: drop-shadow(0 0 5px gold); opacity: 0.8; }
-            50% { transform: scale(1.5); filter: drop-shadow(0 0 20px gold); opacity: 1; }
-            100% { transform: scale(1); filter: drop-shadow(0 0 5px gold); opacity: 0.8; }
+            0% { transform: scale(1); filter: drop-shadow(0 0 5px gold); }
+            50% { transform: scale(1.5); filter: drop-shadow(0 0 20px gold); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 5px gold); }
         }
         .lotus-marker { 
             display: flex !important; justify-content: center; align-items: center; 
-            font-size: 32px !important; animation: breathe 2s infinite ease-in-out; 
-            background: none !important; border: none !important;
+            font-size: 32px !important; animation: breathe 2s infinite; 
+            background: none !important; border: none !important; 
         }
 
-        /* 加大版彈出視窗樣式 */
+        /* 加大版彈出視窗 */
         .leaflet-popup-content-wrapper { 
-            background: rgba(10, 25, 47, 0.95) !important; 
-            color: #fff !important; 
-            border: 2px solid var(--gold);
-            border-radius: 12px;
-            width: 320px !important; /* 強制加大寬度 */
+            background: #112240 !important; color: white !important; 
+            border: 2px solid var(--gold); width: 320px !important; 
         }
-        .leaflet-popup-content { font-size: 1.1em; line-height: 1.6; margin: 20px; }
-        .leaflet-popup-tip { background: var(--gold); }
+        .leaflet-popup-content { font-size: 1.1em; line-height: 1.6; }
 
-        .stats-badge { margin: 20px; color: var(--gold); font-size: 1.3em; border: 2px solid var(--gold); padding: 12px 25px; border-radius: 50px; display: inline-block; background: rgba(255,215,0,0.1); }
-        #count { font-weight: bold; font-size: 1.4em; margin: 0 5px; }
+        .stats-badge { margin: 20px; color: var(--gold); font-size: 1.3em; border: 2px solid var(--gold); padding: 10px 25px; border-radius: 50px; display: inline-block; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="nav-title" style="color:var(--gold); font-weight:bold;">VESAK 2026 | 衛塞全球點燈</div>
-    <button onclick="toggleLang()" style="color:var(--gold); background:none; border:1px solid var(--gold); padding:5px 15px; border-radius:15px; cursor:pointer;">EN / 中文</button>
+    <div id="nav-title">VESAK GLOBAL LIGHTING | 衛塞全球點燈</div>
+    <button class="lang-btn" onclick="toggleLang()">EN / 中文</button>
 </nav>
 
 <div class="hero">
     <img src="buddha_vesak.png" class="buddha-img">
     <h2 id="quote-text">「願慈悲之光，照破世間黑暗。」</h2>
-    <p id="description" style="color:#aaa;">點擊地圖點亮蓮花，您的善念將與全球同步顯示。</p>
-    <div class="stats-badge" id="stats-area">全球已匯聚：<span id="count">0</span> 盞心燈</div>
+    <p id="description">點擊地圖點亮蓮花，您的善念將與全球同步顯示。</p>
+    <div class="stats-badge" id="stats-area">
+        全球已匯聚：<span id="count">0</span> 盞心燈
+    </div>
 </div>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onValue, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // 1. Firebase 配置 (請保持您原本的設定)
+    // Firebase 配置 (請確保填入您自己的金鑰)
     const firebaseConfig = {
         apiKey: "AIzaSyAspVQZ4NhtQUp_U5Cv-6pV9E39oRlAcWg",
   authDomain: "scoutvesak.firebaseapp.com",
@@ -77,30 +83,34 @@
     const db = getDatabase(app);
     const pointsRef = ref(db, 'points');
 
-    // 2. 隨機法語清單
+    // 語言翻譯字典
+    let currentLang = 'zh';
+    const i18n = {
+        zh: { 
+            nav: "VESAK GLOBAL LIGHTING | 衛塞全球點燈", 
+            desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", 
+            countLabel: "全球已匯聚：", unit: " 盞心燈",
+            quote: "「願慈悲之光，照破世間黑暗。」",
+            popup: "已點亮慈悲之光"
+        },
+        en: { 
+            nav: "VESAK GLOBAL LIGHTING", 
+            desc: "Click to light a lotus, your deeds will be synced globally.", 
+            countLabel: "Global Deeds: ", unit: " Lights",
+            quote: "May the light of compassion illuminate the world.",
+            popup: "Light of Compassion Lit"
+        }
+    };
+
+    // 100 句法語清單 (範例結構)
     const quotes = [
         { zh: "慈悲心是一切功德的母體。", en: "Compassion is the mother of all virtues." },
         { zh: "提得起是聰明，放得下是智慧。", en: "To lift is clever; to let go is wisdom." },
-        { zh: "心好命就好，慈悲聖潔好。", en: "A good heart brings a good life; compassion is holy." },
-        { zh: "給人信心，希望，喜悅，方便。", en: "Give others confidence, hope, joy, and convenience." },
-        { zh: "願慈悲之光，照破世間黑暗。", en: "May the light of compassion illuminate the darkness." },
-        { zh: "心中有佛，所見皆佛。", en: "When there is Buddha in your heart, all you see is Buddha." },
-        { zh: "知足常樂，能忍自安。", en: "Contentment brings joy; patience brings peace." },
-        { zh: "微笑是世界上最美的色彩。", en: "A smile is the most beautiful color in the world." },
-        { zh: "讚美是世界上最動聽的聲音。", en: "Praise is the most beautiful sound in the world." },
-        { zh: "一花一世界，一葉一如來。", en: "A world in a flower, a Buddha in a leaf." },
-        { zh: "廣結善緣，自能事事順利。", en: "Build good affinities, and all will go smoothly." },
-        { zh: "心安茅屋穩，性定菜根香。", en: "A peaceful mind stabilizes a hut; a calm nature flavors the roots." }
-        // (此處可按格式繼續增加至 100 句)
+        { zh: "心好命就好，慈悲聖潔好。", en: "A good heart brings a good life; compassion is holy." }
+        // ... 此處可增加至 100 句
     ];
 
-    // 3. 語言切換
-    let currentLang = 'zh';
-    const i18n = {
-        zh: { nav: "VESAK 2026 | 衛塞全球點燈", desc: "點擊地圖點亮蓮花，您的善念將與全球同步顯示。", countLabel: "全球已匯聚：", unit: " 盞心燈", quote: "「願慈悲之光，照破世間黑暗。」", popup: "已為您點亮一盞心燈" },
-        en: { nav: "VESAK 2026 | GLOBAL LIGHTING", desc: "Click on the map to light a lotus and share your blessing.", countLabel: "Global Deeds: ", unit: " Lights", quote: "May the light of compassion illuminate the world.", popup: "A Light has been lit for you" }
-    };
-
+    // 全網頁翻譯功能
     window.toggleLang = function() {
         currentLang = currentLang === 'zh' ? 'en' : 'zh';
         document.getElementById('nav-title').innerText = i18n[currentLang].nav;
@@ -109,20 +119,38 @@
         updateDisplay(lastCount);
     };
 
-    // 4. 初始化地圖
+    // 初始化地圖
     const map = L.map('map').setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // 5. 點擊與同步邏輯
+    // 監聽點擊與資料寫入
     map.on('click', (e) => {
         const q = quotes[Math.floor(Math.random() * quotes.length)];
-        push(pointsRef, {
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-            q_zh: q.zh,
-            q_en: q.en
-        });
+        push(pointsRef, { lat: e.latlng.lat, lng: e.latlng.lng, q_zh: q.zh, q_en: q.en });
     });
 
+    // 監聽新點燈並顯示加大視窗
     onChildAdded(pointsRef, (data) => {
         const val = data.val();
+        const lotusIcon = L.divIcon({ className: 'lotus-marker', html: '🪷', iconSize: [40, 40], iconAnchor: [20, 20] });
+        const marker = L.marker([val.lat, val.lng], { icon: lotusIcon }).addTo(map);
+        
+        const popupContent = `
+            <div style="text-align:center;">
+                <b style="color:gold;">${i18n[currentLang].popup}</b>
+                <p style="margin:10px 0;">${val.q_zh}</p>
+                <p style="font-style:italic; font-size:0.9em; color:#ccc;">${val.q_en}</p>
+            </div>`;
+        marker.bindPopup(popupContent).openPopup();
+    });
+
+    let lastCount = 0;
+    function updateDisplay(count) {
+        lastCount = count;
+        document.getElementById('stats-area').innerHTML = `${i18n[currentLang].countLabel}<span id="count">${count}</span>${i18n[currentLang].unit}`;
+    }
+
+    onValue(pointsRef, (snapshot) => { updateDisplay(snapshot.size || 0); });
+</script>
+</body>
+</html>
